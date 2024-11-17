@@ -9,8 +9,7 @@ def generate_code():
     base = "Y2GTV"
     suffix = ''.join(
         random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=10))
-    #return base + suffix
-    return "Y2GTVY8X0D7C5EY"
+    return base + suffix
 
 
 def generate_email():
@@ -150,15 +149,14 @@ def main():
                 print(message)
                 send_to_telegram(valid_code_api, message)
             else:
-                print(
+                error_message = (
                     f"Validation failed for code: {code}. Response message: {response.get('resMsg', 'Unknown error')}."
                 )
-                send_to_telegram(invalid_code_api, code)
+                print(error_message)
+                send_to_telegram(invalid_code_api, error_message)
         else:
-            print(
-                f"No valid response received or request failed with proxy {proxy}."
-            )
-            send_to_telegram(invalid_code_api, code)
+            print(f"No valid response received or request failed with proxy {proxy}.")
+            send_to_telegram(invalid_code_api, "Request failed, no valid response.")
 
         time.sleep(2)  # Delay between iterations to avoid excessive load
 
