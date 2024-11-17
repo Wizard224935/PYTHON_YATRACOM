@@ -9,7 +9,7 @@ def generate_code():
     base = "Y2GTV"
     suffix = ''.join(
         random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=10))
-    return Y2GTVY8X0D7C5EY #base + suffix
+    return "Y2GTVY8X0D7C5EY" #base + suffix
 
 
 def generate_email():
