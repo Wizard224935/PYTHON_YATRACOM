@@ -158,7 +158,7 @@ def main():
             print(f"No valid response received or request failed with proxy {proxy}.")
             send_to_telegram(invalid_code_api, "Request failed, no valid response.")
 
-        time.sleep(2)  # Delay between iterations to avoid excessive load
+        time.sleep(20)  # Delay between iterations to avoid excessive load
 
 
 if __name__ == "__main__":
