@@ -102,10 +102,10 @@ def run_infinite_loop():
         try:
             proxy = random.choice(proxies).strip()  # Randomly pick a proxy from the file
             send_api_request(proxy)  # Send the API request using the selected proxy
-            time.sleep(5)  # Wait for 5 seconds before sending the next request
+            time.sleep(2)  # Wait for 5 seconds before sending the next request
         except Exception as e:
             print(f"Error in sending request: {e}")
-            time.sleep(5)  # Wait for a while before retrying
+            time.sleep(2)  # Wait for a while before retrying
 
 # Flask route
 @app.route('/', methods=['GET'])
