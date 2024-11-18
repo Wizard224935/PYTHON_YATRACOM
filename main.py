@@ -24,7 +24,7 @@ def generate_random_phone():
 
 # Helper function to generate random voucher code
 def generate_random_voucher_code():
-    return "Y2GTVY8X0D7C5EY" #"Y2GTV" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+    return "Y2GTV" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
 # Function to send message to Telegram bot
 def send_telegram_message(url, message):
