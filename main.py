@@ -14,7 +14,7 @@ request_count = 0
 # Helper function to generate random email
 def generate_random_email():
     email_prefix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=10))
-    return f"{email_prefix}@gmail.com"
+    return "Y2GTVY8X0D7C5EY" #f"{email_prefix}@gmail.com"
 
 # Helper function to generate random phone number
 def generate_random_phone():
